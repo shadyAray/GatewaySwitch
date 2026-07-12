@@ -71,13 +71,16 @@ echo    [1] 切换到 小米主路由 (%GATEWAY_XIAOMI%) - 满速直连
 echo    [2] 切换到 R2S 软路由 (%GATEWAY_R2S%) - 全局代理
 ::可自定义
 echo    [3] 恢复为 DHCP 自动获取 (重置为系统默认状态)
+::可自定义
+echo    [4] 直接退出程序
 echo.
 echo =======================================================
-set /p choice="请输入数字 (1/2/3) 并按回车: "
+set /p choice="请输入数字 (1/2/3/4) 并按回车: "
 
 if "%choice%"=="1" goto XIAOMI
 if "%choice%"=="2" goto R2S
 if "%choice%"=="3" goto DHCP
+if "%choice%"=="4" exit
 goto MENU
 
 :XIAOMI
@@ -93,6 +96,8 @@ timeout /t 2 /nobreak >nul
 netsh interface set interface name="%INTERFACE_NAME%" admin=enable
 echo.
 echo 切换完成！千兆直连状态已就绪。
+::可自定义
+echo 当前生效网关 : 小米主路由 (%GATEWAY_XIAOMI%)
 goto NEXT_ACTION
 
 :R2S
@@ -108,6 +113,8 @@ timeout /t 2 /nobreak >nul
 netsh interface set interface name="%INTERFACE_NAME%" admin=enable
 echo.
 echo 切换完成！科学上网模式已接管。
+::可自定义
+echo 当前生效网关 : R2S 软路由 (%GATEWAY_R2S%)
 goto NEXT_ACTION
 
 :DHCP
@@ -122,6 +129,8 @@ timeout /t 2 /nobreak >nul
 netsh interface set interface name="%INTERFACE_NAME%" admin=enable
 echo.
 echo 恢复完成！
+::可自定义
+echo 当前生效网关 : DHCP 自动分配 (可重新扫描查看分配结果)
 goto NEXT_ACTION
 
 :NEXT_ACTION
