@@ -12,14 +12,14 @@ if exist "%temp%\getadmin.vbs" ( del "%temp%\getadmin.vbs" )
 pushd "%CD%"
 CD /D "%~dp0"
 
-title 网关极速切换助手
+title 网关切换助手
 color 0A
 
 echo =======================================================
 echo         正在扫描底层网络环境，请稍候...
 echo =======================================================
 
-:: 单次 PowerShell 并发查询，启动耗时直降 200%
+:: 核心黑科技：单次 PowerShell 并发查询，启动耗时直降 200%
 for /f "usebackq tokens=1,2 delims=|" %%A in (`powershell -NoProfile -Command "$c=Get-NetIPConfiguration | Where-Object { $_.IPv4DefaultGateway } | Select-Object -First 1; Write-Output ($c.InterfaceAlias + '|' + $c.IPv4Address.IPAddress)"`) do (
     set INTERFACE_NAME=%%A
     set PC_IP=%%B
@@ -40,7 +40,7 @@ echo                 网络环境一键切换助手
 echo =======================================================
 echo.
 echo   [智能检测结果]
-echo   当前网卡 : %INTERFACE_NAME%
+echo   自动锁定网卡 : %INTERFACE_NAME%
 echo   本机当前 IP  : %PC_IP%
 echo.
 echo   [1] 切换到 小米主路由 (%GATEWAY_XIAOMI%) - 满速直连
@@ -59,7 +59,12 @@ goto MENU
 echo.
 echo 正在将 [%INTERFACE_NAME%] 切换到小米路由器网关...
 netsh interface ip set address name="%INTERFACE_NAME%" source=static addr=%PC_IP% mask=%SUBNET% gateway=%GATEWAY_XIAOMI%
-netsh interface ip set dns name="%INTERFACE_NAME%" source=static addr=%GATEWAY_XIAOMI% register=PRIMARY
+netsh interface ip set dns name="%INTERFACE_NAME%" source=static addr=%GATEWAY_XIAOMI% validate=no
+echo.
+echo 正在强行重启网卡，清空底层连接状态...
+netsh interface set interface name="%INTERFACE_NAME%" admin=disable
+timeout /t 2 /nobreak >nul
+netsh interface set interface name="%INTERFACE_NAME%" admin=enable
 echo.
 echo 切换完成！千兆直连状态已就绪。
 pause
@@ -69,7 +74,12 @@ exit
 echo.
 echo 正在将 [%INTERFACE_NAME%] 切换到 R2S 软路由网关...
 netsh interface ip set address name="%INTERFACE_NAME%" source=static addr=%PC_IP% mask=%SUBNET% gateway=%GATEWAY_R2S%
-netsh interface ip set dns name="%INTERFACE_NAME%" source=static addr=%GATEWAY_R2S% register=PRIMARY
+netsh interface ip set dns name="%INTERFACE_NAME%" source=static addr=%GATEWAY_R2S% validate=no
+echo.
+echo 正在强行重启网卡，清空底层连接状态...
+netsh interface set interface name="%INTERFACE_NAME%" admin=disable
+timeout /t 2 /nobreak >nul
+netsh interface set interface name="%INTERFACE_NAME%" admin=enable
 echo.
 echo 切换完成！科学上网模式已接管。
 pause
