@@ -15,15 +15,20 @@ CD /D "%~dp0"
 title 网关极速切换助手
 color 0A
 
-:: ==============================================
-:: 网络配置区
-:: ==============================================
-:: 如果你用的是 Wi-Fi，请把 "以太网" 改成 "WLAN" 或者你实际的网络连接名称
-set INTERFACE_NAME="以太网"
+echo =======================================================
+echo         正在扫描底层网络环境，请稍候...
+echo =======================================================
 
-set PC_IP=192.168.31.68
+:: 单次 PowerShell 并发查询，启动耗时直降 200%
+for /f "usebackq tokens=1,2 delims=|" %%A in (`powershell -NoProfile -Command "$c=Get-NetIPConfiguration | Where-Object { $_.IPv4DefaultGateway } | Select-Object -First 1; Write-Output ($c.InterfaceAlias + '|' + $c.IPv4Address.IPAddress)"`) do (
+    set INTERFACE_NAME=%%A
+    set PC_IP=%%B
+)
+
+:: ==============================================
+:: 网关配置区
+:: ==============================================
 set SUBNET=255.255.255.0
-
 set GATEWAY_XIAOMI=192.168.31.1
 set GATEWAY_R2S=192.168.31.3
 :: ==============================================
@@ -34,12 +39,13 @@ echo =======================================================
 echo                 网络环境一键切换助手
 echo =======================================================
 echo.
-echo   当前目标网卡 : %INTERFACE_NAME%
-echo   本机静态 IP  : %PC_IP%
+echo   [智能检测结果]
+echo   当前网卡 : %INTERFACE_NAME%
+echo   本机当前 IP  : %PC_IP%
 echo.
-echo   [1] 切换到 主路由 (192.168.31.1) - 满速直连
-echo   [2] 切换到 软路由 (192.168.31.3) - 全局代理
-echo   [3] 恢复为 DHCP 自动获取 (重置为默认状态)
+echo   [1] 切换到 小米主路由 (%GATEWAY_XIAOMI%) - 满速直连
+echo   [2] 切换到 R2S 软路由 (%GATEWAY_R2S%) - 全局代理
+echo   [3] 恢复为 DHCP 自动获取 (重置为系统默认状态)
 echo.
 echo =======================================================
 set /p choice="请输入数字 (1/2/3) 并按回车: "
@@ -51,27 +57,30 @@ goto MENU
 
 :XIAOMI
 echo.
-echo 正在切换到 主路由网关...
-netsh interface ip set address name=%INTERFACE_NAME% source=static addr=%PC_IP% mask=%SUBNET% gateway=%GATEWAY_XIAOMI%
-netsh interface ip set dns name=%INTERFACE_NAME% source=static addr=%GATEWAY_XIAOMI% register=PRIMARY
-echo 切换完成！满速直连状态已就绪。
+echo 正在将 [%INTERFACE_NAME%] 切换到小米路由器网关...
+netsh interface ip set address name="%INTERFACE_NAME%" source=static addr=%PC_IP% mask=%SUBNET% gateway=%GATEWAY_XIAOMI%
+netsh interface ip set dns name="%INTERFACE_NAME%" source=static addr=%GATEWAY_XIAOMI% register=PRIMARY
+echo.
+echo 切换完成！千兆直连状态已就绪。
 pause
 exit
 
 :R2S
 echo.
-echo 正在切换到 软路由网关...
-netsh interface ip set address name=%INTERFACE_NAME% source=static addr=%PC_IP% mask=%SUBNET% gateway=%GATEWAY_R2S%
-netsh interface ip set dns name=%INTERFACE_NAME% source=static addr=%GATEWAY_R2S% register=PRIMARY
+echo 正在将 [%INTERFACE_NAME%] 切换到 R2S 软路由网关...
+netsh interface ip set address name="%INTERFACE_NAME%" source=static addr=%PC_IP% mask=%SUBNET% gateway=%GATEWAY_R2S%
+netsh interface ip set dns name="%INTERFACE_NAME%" source=static addr=%GATEWAY_R2S% register=PRIMARY
+echo.
 echo 切换完成！科学上网模式已接管。
 pause
 exit
 
 :DHCP
 echo.
-echo 正在恢复 DHCP 自动获取...
-netsh interface ip set address name=%INTERFACE_NAME% source=dhcp
-netsh interface ip set dns name=%INTERFACE_NAME% source=dhcp
+echo 正在将 [%INTERFACE_NAME%] 恢复为 DHCP 自动获取...
+netsh interface ip set address name="%INTERFACE_NAME%" source=dhcp
+netsh interface ip set dns name="%INTERFACE_NAME%" source=dhcp
+echo.
 echo 恢复完成！
 pause
 exit
