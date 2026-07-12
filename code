@@ -37,8 +37,8 @@ echo.
 echo   当前目标网卡 : %INTERFACE_NAME%
 echo   本机静态 IP  : %PC_IP%
 echo.
-echo   [1] 切换到 小米主路由 (192.168.31.1) - 满速直连/打游戏
-echo   [2] 切换到 R2S 软路由 (192.168.31.3) - 科学上网/全局代理
+echo   [1] 切换到 主路由 (192.168.31.1) - 满速直连
+echo   [2] 切换到 软路由 (192.168.31.3) - 全局代理
 echo   [3] 恢复为 DHCP 自动获取 (重置为默认状态)
 echo.
 echo =======================================================
@@ -51,16 +51,16 @@ goto MENU
 
 :XIAOMI
 echo.
-echo 正在切换到小米路由器网关...
+echo 正在切换到 主路由网关...
 netsh interface ip set address name=%INTERFACE_NAME% source=static addr=%PC_IP% mask=%SUBNET% gateway=%GATEWAY_XIAOMI%
 netsh interface ip set dns name=%INTERFACE_NAME% source=static addr=%GATEWAY_XIAOMI% register=PRIMARY
-echo 切换完成！Steam / BT 满速直连状态已就绪。
+echo 切换完成！满速直连状态已就绪。
 pause
 exit
 
 :R2S
 echo.
-echo 正在切换到 R2S 软路由网关...
+echo 正在切换到 软路由网关...
 netsh interface ip set address name=%INTERFACE_NAME% source=static addr=%PC_IP% mask=%SUBNET% gateway=%GATEWAY_R2S%
 netsh interface ip set dns name=%INTERFACE_NAME% source=static addr=%GATEWAY_R2S% register=PRIMARY
 echo 切换完成！科学上网模式已接管。
