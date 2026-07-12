@@ -1,5 +1,5 @@
 @echo off
-:: 自动获取管理员权限，防止修改网卡配置时被拒绝
+:: 自动获取管理员权限
 >nul 2>&1 "%SYSTEMROOT%\system32\cacls.exe" "%SYSTEMROOT%\system32\config\system"
 if '%errorlevel%' NEQ '0' (
     echo 正在请求管理员权限...
@@ -15,14 +15,29 @@ CD /D "%~dp0"
 title 网关切换助手
 color 0A
 
+:: 清理潜在的变量残留
+set "INTERFACE_NAME="
+set "PC_IP="
+set "CURRENT_GW="
+
 echo =======================================================
-echo         正在扫描底层网络环境，请稍候...
+echo          正在扫描物理网络环境，请稍候...
 echo =======================================================
 
-:: 核心黑科技：单次 PowerShell 并发查询，启动耗时直降 200%
-for /f "usebackq tokens=1,2 delims=|" %%A in (`powershell -NoProfile -Command "$c=Get-NetIPConfiguration | Where-Object { $_.IPv4DefaultGateway } | Select-Object -First 1; Write-Output ($c.InterfaceAlias + '|' + $c.IPv4Address.IPAddress)"`) do (
-    set INTERFACE_NAME=%%A
-    set PC_IP=%%B
+:: 核心黑科技：并发抓取 网卡名 | 本机IP | 当前网关
+for /f "usebackq tokens=1,2,3 delims=|" %%A in (`powershell -NoProfile -Command "$c=Get-NetIPConfiguration | Where-Object { $_.NetAdapter.Status -eq 'Up' -and $_.NetAdapter.Virtual -eq $false } | Select-Object -First 1; Write-Output ($c.InterfaceAlias + '|' + $c.IPv4Address[0].IPAddress + '|' + $c.IPv4DefaultGateway.NextHop)"`) do (
+    set "INTERFACE_NAME=%%A"
+    set "PC_IP=%%B"
+    set "CURRENT_GW=%%C"
+)
+
+:: 故障安全拦截
+if "%INTERFACE_NAME%"=="" (
+    echo.
+    echo [错误] 扫描失败！未能检测到活动的物理网卡。
+    echo 请检查网线是否插好，或 Wi-Fi 是否已连接。
+    pause
+    exit
 )
 
 :: ==============================================
@@ -33,18 +48,27 @@ set GATEWAY_XIAOMI=192.168.31.1
 set GATEWAY_R2S=192.168.31.3
 :: ==============================================
 
+:: 智能判定当前模式
+set "MODE_STATUS=未知 / DHCP动态"
+if "%CURRENT_GW%"=="%GATEWAY_XIAOMI%" set "MODE_STATUS=满速直连 (小米)"                    #可自定义
+if "%CURRENT_GW%"=="%GATEWAY_R2S%" set "MODE_STATUS=科学上网 (R2S)"                    #可自定义
+
 :MENU
 cls
 echo =======================================================
-echo                 网络环境一键切换助手
+echo                 网络切换助手
 echo =======================================================
 echo.
-echo   [智能检测结果]
-echo   自动锁定网卡 : %INTERFACE_NAME%
-echo   本机当前 IP  : %PC_IP%
+echo   [当前链路状态]
+echo   锁定网卡 : %INTERFACE_NAME%
+echo   锁定 IP  : %PC_IP%
+echo   当前网关 : %CURRENT_GW% - [%MODE_STATUS%]
 echo.
+::可自定义
 echo   [1] 切换到 小米主路由 (%GATEWAY_XIAOMI%) - 满速直连
+::可自定义
 echo   [2] 切换到 R2S 软路由 (%GATEWAY_R2S%) - 全局代理
+::可自定义
 echo   [3] 恢复为 DHCP 自动获取 (重置为系统默认状态)
 echo.
 echo =======================================================
@@ -57,6 +81,7 @@ goto MENU
 
 :XIAOMI
 echo.
+::可自定义
 echo 正在将 [%INTERFACE_NAME%] 切换到小米路由器网关...
 netsh interface ip set address name="%INTERFACE_NAME%" source=static addr=%PC_IP% mask=%SUBNET% gateway=%GATEWAY_XIAOMI%
 netsh interface ip set dns name="%INTERFACE_NAME%" source=static addr=%GATEWAY_XIAOMI% validate=no
@@ -72,6 +97,7 @@ exit
 
 :R2S
 echo.
+::可自定义
 echo 正在将 [%INTERFACE_NAME%] 切换到 R2S 软路由网关...
 netsh interface ip set address name="%INTERFACE_NAME%" source=static addr=%PC_IP% mask=%SUBNET% gateway=%GATEWAY_R2S%
 netsh interface ip set dns name="%INTERFACE_NAME%" source=static addr=%GATEWAY_R2S% validate=no
@@ -90,6 +116,11 @@ echo.
 echo 正在将 [%INTERFACE_NAME%] 恢复为 DHCP 自动获取...
 netsh interface ip set address name="%INTERFACE_NAME%" source=dhcp
 netsh interface ip set dns name="%INTERFACE_NAME%" source=dhcp
+echo.
+echo 正在强行重启网卡，清空底层连接状态...
+netsh interface set interface name="%INTERFACE_NAME%" admin=disable
+timeout /t 2 /nobreak >nul
+netsh interface set interface name="%INTERFACE_NAME%" admin=enable
 echo.
 echo 恢复完成！
 pause
