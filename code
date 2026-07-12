@@ -1,14 +1,77 @@
+@echo off
+:: 自动获取管理员权限，防止修改网卡配置时被拒绝
+>nul 2>&1 "%SYSTEMROOT%\system32\cacls.exe" "%SYSTEMROOT%\system32\config\system"
+if '%errorlevel%' NEQ '0' (
+    echo 正在请求管理员权限...
+    echo Set UAC = CreateObject^("Shell.Application"^) > "%temp%\getadmin.vbs"
+    echo UAC.ShellExecute "%~s0", "", "", "runas", 1 >> "%temp%\getadmin.vbs"
+    "%temp%\getadmin.vbs"
+    exit /B
+)
+if exist "%temp%\getadmin.vbs" ( del "%temp%\getadmin.vbs" )
+pushd "%CD%"
+CD /D "%~dp0"
+
+title 网关极速切换助手
+color 0A
+
 :: ==============================================
-:: 网络配置区 (请在此处修改为你自己的网络参数)
+:: 网络配置区
 :: ==============================================
-:: 如果你用的是 Wi-Fi，请把 "以太网" 改成 "WLAN" 或者你实际的无线网卡名称
+:: 如果你用的是 Wi-Fi，请把 "以太网" 改成 "WLAN" 或者你实际的网络连接名称
 set INTERFACE_NAME="以太网"
 
-:: 填写你电脑的固定局域网 IP 和子网掩码
-set PC_IP=192.168.X.X
+set PC_IP=192.168.31.68
 set SUBNET=255.255.255.0
 
-:: 填写你的主路由 (如小米路由器) 和软路由 (如旁路由) 的 IP
-set GATEWAY_MAIN=192.168.X.X
-set GATEWAY_BYPASS=192.168.X.X
+set GATEWAY_XIAOMI=192.168.31.1
+set GATEWAY_R2S=192.168.31.3
 :: ==============================================
+
+:MENU
+cls
+echo =======================================================
+echo                 网络环境一键切换助手
+echo =======================================================
+echo.
+echo   当前目标网卡 : %INTERFACE_NAME%
+echo   本机静态 IP  : %PC_IP%
+echo.
+echo   [1] 切换到 小米主路由 (192.168.31.1) - 满速直连/打游戏
+echo   [2] 切换到 R2S 软路由 (192.168.31.3) - 科学上网/全局代理
+echo   [3] 恢复为 DHCP 自动获取 (重置为默认状态)
+echo.
+echo =======================================================
+set /p choice="请输入数字 (1/2/3) 并按回车: "
+
+if "%choice%"=="1" goto XIAOMI
+if "%choice%"=="2" goto R2S
+if "%choice%"=="3" goto DHCP
+goto MENU
+
+:XIAOMI
+echo.
+echo 正在切换到小米路由器网关...
+netsh interface ip set address name=%INTERFACE_NAME% source=static addr=%PC_IP% mask=%SUBNET% gateway=%GATEWAY_XIAOMI%
+netsh interface ip set dns name=%INTERFACE_NAME% source=static addr=%GATEWAY_XIAOMI% register=PRIMARY
+echo 切换完成！Steam / BT 满速直连状态已就绪。
+pause
+exit
+
+:R2S
+echo.
+echo 正在切换到 R2S 软路由网关...
+netsh interface ip set address name=%INTERFACE_NAME% source=static addr=%PC_IP% mask=%SUBNET% gateway=%GATEWAY_R2S%
+netsh interface ip set dns name=%INTERFACE_NAME% source=static addr=%GATEWAY_R2S% register=PRIMARY
+echo 切换完成！科学上网模式已接管。
+pause
+exit
+
+:DHCP
+echo.
+echo 正在恢复 DHCP 自动获取...
+netsh interface ip set address name=%INTERFACE_NAME% source=dhcp
+netsh interface ip set dns name=%INTERFACE_NAME% source=dhcp
+echo 恢复完成！
+pause
+exit
