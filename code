@@ -15,6 +15,7 @@ CD /D "%~dp0"
 title 网关切换助手
 color 0A
 
+:SCAN
 :: 清理潜在的变量残留
 set "INTERFACE_NAME="
 set "PC_IP="
@@ -50,26 +51,26 @@ set GATEWAY_R2S=192.168.31.3
 
 :: 智能判定当前模式
 set "MODE_STATUS=未知 / DHCP动态"
-if "%CURRENT_GW%"=="%GATEWAY_XIAOMI%" set "MODE_STATUS=满速直连 (小米)"                    #可自定义
-if "%CURRENT_GW%"=="%GATEWAY_R2S%" set "MODE_STATUS=科学上网 (R2S)"                    #可自定义
+if "%CURRENT_GW%"=="%GATEWAY_XIAOMI%" set "MODE_STATUS=满速直连 (小米)"                    & rem 可自定义
+if "%CURRENT_GW%"=="%GATEWAY_R2S%" set "MODE_STATUS=科学上网 (R2S)"                      & rem 可自定义
 
 :MENU
 cls
 echo =======================================================
-echo                 网络切换助手
+echo                  网络切换助手
 echo =======================================================
 echo.
-echo   [当前链路状态]
-echo   锁定网卡 : %INTERFACE_NAME%
-echo   锁定 IP  : %PC_IP%
-echo   当前网关 : %CURRENT_GW% - [%MODE_STATUS%]
+echo    [当前链路状态]
+echo    锁定网卡 : %INTERFACE_NAME%
+echo    锁定 IP  : %PC_IP%
+echo    当前网关 : %CURRENT_GW% - [%MODE_STATUS%]
 echo.
 ::可自定义
-echo   [1] 切换到 小米主路由 (%GATEWAY_XIAOMI%) - 满速直连
+echo    [1] 切换到 小米主路由 (%GATEWAY_XIAOMI%) - 满速直连
 ::可自定义
-echo   [2] 切换到 R2S 软路由 (%GATEWAY_R2S%) - 全局代理
+echo    [2] 切换到 R2S 软路由 (%GATEWAY_R2S%) - 全局代理
 ::可自定义
-echo   [3] 恢复为 DHCP 自动获取 (重置为系统默认状态)
+echo    [3] 恢复为 DHCP 自动获取 (重置为系统默认状态)
 echo.
 echo =======================================================
 set /p choice="请输入数字 (1/2/3) 并按回车: "
@@ -92,8 +93,7 @@ timeout /t 2 /nobreak >nul
 netsh interface set interface name="%INTERFACE_NAME%" admin=enable
 echo.
 echo 切换完成！千兆直连状态已就绪。
-pause
-exit
+goto NEXT_ACTION
 
 :R2S
 echo.
@@ -108,8 +108,7 @@ timeout /t 2 /nobreak >nul
 netsh interface set interface name="%INTERFACE_NAME%" admin=enable
 echo.
 echo 切换完成！科学上网模式已接管。
-pause
-exit
+goto NEXT_ACTION
 
 :DHCP
 echo.
@@ -123,5 +122,18 @@ timeout /t 2 /nobreak >nul
 netsh interface set interface name="%INTERFACE_NAME%" admin=enable
 echo.
 echo 恢复完成！
-pause
-exit
+goto NEXT_ACTION
+
+:NEXT_ACTION
+echo.
+echo =======================================================
+echo    接下来你想做什么？
+echo =======================================================
+echo    [1] 重新扫描网络并返回主菜单
+echo    [2] 直接退出程序
+echo =======================================================
+set /p next_choice="请输入数字 (1/2) 并按回车: "
+
+if "%next_choice%"=="1" goto SCAN
+if "%next_choice%"=="2" exit
+goto NEXT_ACTION
